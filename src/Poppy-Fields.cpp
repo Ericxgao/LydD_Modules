@@ -5,6 +5,9 @@
 #include <cmath>
 #include <vector>
 
+#define MODULE_NAME PoppyModule
+#define PANEL "fractal_panel.svg"
+
 const float E = 2.7182818284590;
 
 //can I wrap this and the switch struct in a class without th functions becoming 'members' and breaking the array
@@ -147,6 +150,9 @@ struct PoppyModule : Module
         ENUMS(AUX_TYPE_LIGHT, 3),
         NUM_LIGHTS
     };
+
+    //panel variable holder
+#include "Theme/PanelVars.h"
 
     //maximum sequence length
     const int iters = 64;
@@ -304,7 +310,8 @@ struct PoppyModule : Module
     rack::dsp::Timer timerY;
     rack::dsp::SchmittTrigger TriggerX;
     rack::dsp::SchmittTrigger TriggerY;
-    rack::dsp::SchmittTrigger EOC;
+    rack::dsp::BooleanTrigger _EOCtrig;
+    rack::dsp::PulseGenerator _EOCpulse;
     rack::dsp::SlewLimiter _slewlimitY{};
     rack::dsp::SlewLimiter _slewlimitX{};
     rack::dsp::TRCFilter<float> deClick;
@@ -693,9 +700,7 @@ struct PoppyModule : Module
 
         }
 
-        //is it the beginning? is it the end?           are they the same thing?
-        bool BOC = Xstep == seqstart;
-        bool BOCtrig = EOC.process(BOC, 0.8f, 1.0f);
+
 
         float timestepX = timerX.process(args.sampleTime);
         float timestepY = timerY.process(args.sampleTime);
@@ -775,6 +780,12 @@ struct PoppyModule : Module
 
         outputs[YSHIFT_CV_OUTPUT].setVoltage(shiftnowY, 0);
 
+        //is it the beginning? is it the end?           are they the same thing?
+        bool BOC = (Xstep == seqstart);
+        bool BOCtrig = _EOCtrig.process(BOC);
+        if (BOCtrig) _EOCpulse.trigger(0.8f);
+        bool BOCpulse = _EOCpulse.process(args.sampleTime);
+
         switch (auxType) {
             
         case 0: {
@@ -800,7 +811,7 @@ struct PoppyModule : Module
             break;
         }
         case 3: {                
-            outputs[AUX_OUTPUT].setVoltage(BOCtrig, 0);
+            outputs[AUX_OUTPUT].setVoltage(BOCpulse * 10.f, 0);
             break;
         }
             
@@ -815,11 +826,13 @@ struct PoppyModule : Module
         json_t* AuxJ = json_integer(auxType);
         json_t* FractalJ = json_integer(fractal);
         json_t* JuliaJ = json_boolean(julia);
+        json_t* panelJ = json_integer(currPanel);
 
         json_object_set_new(rootJ, "Visuals", VisualJ);
         json_object_set_new(rootJ, "AuxType", AuxJ);
         json_object_set_new(rootJ, "Fractal", FractalJ);
         json_object_set_new(rootJ, "Julia", JuliaJ);
+        json_object_set_new(rootJ, "Panel", panelJ);
 
         return rootJ;
     }
@@ -829,6 +842,7 @@ struct PoppyModule : Module
         json_t* JuliaJ = json_object_get(rootJ, "Julia");
         json_t* AuxJ = json_object_get(rootJ, "AuxType");
         json_t* VisualJ = json_object_get(rootJ, "Visuals");
+        json_t* panelJ = json_object_get(rootJ, "Panel");
         if (FractalJ) {
             fractal = json_integer_value(FractalJ);
         }
@@ -841,6 +855,7 @@ struct PoppyModule : Module
         if (VisualJ) {
             quality = json_integer_value(VisualJ);
         }
+        if (panelJ) currPanel = json_integer_value(panelJ);
     }
 
 };
@@ -1146,11 +1161,16 @@ struct FracWidget : Widget {
 };
 
 struct PoppyWidget : ModuleWidget {
+    //name for panel file, same name for every type
+    std::string panel;
+
     PoppyWidget(PoppyModule* module) {
 
         setModule(module);
 
-        setPanel(createPanel(asset::plugin(pluginInstance, "res/fractal_panel.svg"), asset::plugin(pluginInstance, "res/fractal_panel-dark.svg")));
+        panel = PANEL;
+        //set panel on init
+        #include "Theme/initChoosePanel.h"
 
 		addChild(createWidget<ScrewSilver>(Vec(15, 0)));
 		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 30, 0)));
@@ -1207,7 +1227,7 @@ struct PoppyWidget : ModuleWidget {
         addParam(createParam<VCVButton>(Vec(235, 83), module, PoppyModule::QUALITY_BUTTON_PARAM));
         addParam(createParam<VCVButton>(Vec(100, 250), module, PoppyModule::C_TO_MOVE_BUTTON_PARAM));
         addParam(createParam<VCVButton>(Vec(69, 250), module, PoppyModule::MOVE_TO_Z_BUTTON_PARAM));
-        addParam(createParam<PurpleSwitch>(Vec(231.5, 229), module, PoppyModule::RANGE_SWITCH_PARAM));
+        addParam(createParam<PurpleSwitch>(Vec(231.78, 229), module, PoppyModule::RANGE_SWITCH_PARAM));
         addParam(createParam<PurpleSwitch>(Vec(262.5, 229), module, PoppyModule::Y_RANGE_SWITCH_PARAM));
 
         addOutput(createOutput<PurplePort>(Vec(232, 269), module, PoppyModule::XSHIFT_CV_OUTPUT));
@@ -1217,7 +1237,7 @@ struct PoppyWidget : ModuleWidget {
         addOutput(createOutput<PurplePort>(Vec(232, 331), module, PoppyModule::X_TRIG_OUTPUT));
         addOutput(createOutput<PurplePort>(Vec(267, 331), module, PoppyModule::Y_TRIG_OUTPUT));
         addOutput(createOutput<PurplePort>(Vec(197, 331), module, PoppyModule::AUX_OUTPUT));
-
+        
         if (module) {
             FracWidgetBuffer* FracBuffer = new FracWidgetBuffer(module);
             addChild(FracBuffer);
@@ -1227,6 +1247,24 @@ struct PoppyWidget : ModuleWidget {
             FracBuffer->addChild(myWidget);                      
         }        
     }    
+
+    //give struct to menu containing panel options
+    #include "Theme/PanelList.h" 
+
+    void appendContextMenu(Menu* menu) override {
+        PoppyModule* module = dynamic_cast<PoppyModule*>(this->module);
+        assert(module);
+
+        #include "Theme/CreatePanelMenu.h"
+    }
+
+    void step() override {
+        if (module) {
+            //change panel 
+        #include "Theme/UpdatePanel.h"
+        }
+        Widget::step();
+    }
 };
 
 Model* modelPoppy = createModel<PoppyModule, PoppyWidget>("Poppy-fields");

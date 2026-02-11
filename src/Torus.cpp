@@ -1,6 +1,8 @@
 #include "plugin.hpp"
 #include <vector>
 
+#define MODULE_NAME TorusModule
+#define PANEL "Torus_panel.svg"
 
 static const int maxPolyphony = 1;
 
@@ -175,10 +177,13 @@ struct TorusModule : Module
         NUM_LIGHTS
     };
 
+    //panel variable holder
+    #include "Theme/PanelVars.h"
+
     TorusModule() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
-        configParam(BIG_PITCH_PARAM, -5.f, 5.f, 0.f, "Big Circle");
-        configParam(LITTLE_PITCH_PARAM, -5.f, 5.f, 0.f, "Little Circle");
+        configParam(BIG_PITCH_PARAM, -60.f, 60.f, 0.f, "Big Circle");
+        configParam(LITTLE_PITCH_PARAM, -60.f, 60.f, 0.f, "Little Circle");
         configParam(EQUATION_SWITCH_PARAM, 0.f, 2.f, 0.f, "Equation");
         configParam(LFO2_BUTTON_PARAM, 0.f, 1.f, 0.f, "LFO->2");
         configParam(LFO1_BUTTON_PARAM, 0.f, 1.f, 0.f, "LFO->1");
@@ -329,12 +334,12 @@ struct TorusModule : Module
         tWinds = rack::simd::float_4{ tWind };
         nWinds = rack::simd::float_4{ nWind };
 
-        float bigpitchpar = params[BIG_PITCH_PARAM].value;
+        float bigpitchpar = params[BIG_PITCH_PARAM].value / 12.f;
         float bigpitchin = inputs[BIG_PITCH_INPUT].getVoltage(0);
         float bigpitch = (inputs[BIG_PITCH_INPUT].isConnected()) ? bigpitchpar + bigpitchin : bigpitchpar;
         tPitch = Functions.VoltToFreq(bigpitch, 0.0, refFreq);
 
-        float lilpitchpar = params[LITTLE_PITCH_PARAM].value;
+        float lilpitchpar = params[LITTLE_PITCH_PARAM].value / 12.f;
         float lilpitchin = inputs[LITTLE_PITCH_INPUT].getVoltage(0);
         float lilpitch = (inputs[LITTLE_PITCH_INPUT].isConnected()) ? lilpitchpar + lilpitchin : lilpitchpar;
         nPitch = (LFOllow) ? Functions.VoltToFreq(lilpitch + bigpitch, 0.0, refFreq) : Functions.VoltToFreq(lilpitch, 0.0, refFreq);
@@ -473,13 +478,14 @@ struct TorusModule : Module
     }
 
     void onReset(const ResetEvent& e) override {
-        Module::onReset(e);
+        
         loopCounter = 0;
         tPhases = 0;
         nPhases = 0;
         for (int i = 0; i < 3; ++i) {
             Coord[i] = 0;
         }
+        Module::onReset(e);
     }
 
     json_t* dataToJson() override {
@@ -488,10 +494,12 @@ struct TorusModule : Module
         json_t* LFO1J = json_boolean(LFOmode1);
         json_t* LFO2J = json_boolean(LFOmode2);
         json_t* LFOllowJ = json_boolean(LFOllow);
+        json_t* panelJ = json_integer(currPanel);
 
         json_object_set_new(rootJ, "Lfo-1", LFO1J);
         json_object_set_new(rootJ, "Lfo-2", LFO2J);
         json_object_set_new(rootJ, "Lfo-follow", LFOllowJ);
+        json_object_set_new(rootJ, "Panel", panelJ);
 
         return rootJ;
     }
@@ -500,6 +508,7 @@ struct TorusModule : Module
         json_t* LFO1J = json_object_get(rootJ, "Lfo-1");
         json_t* LFO2J = json_object_get(rootJ, "Lfo-2");
         json_t* LFOllowJ = json_object_get(rootJ, "Lfo-follow");
+        json_t* panelJ = json_object_get(rootJ, "Panel");
 
         if (LFO1J) {
             LFOmode1 = json_boolean_value(LFO1J);
@@ -510,6 +519,8 @@ struct TorusModule : Module
         if (LFOllowJ) {
             LFOllow = json_boolean_value(LFOllowJ);
         }
+        if (panelJ) currPanel = json_integer_value(panelJ);
+
     }
 
 };
@@ -611,8 +622,17 @@ struct TorusDrawWidget : Widget {
 };
 
 struct TorusPanelWidget : ModuleWidget {
+
+    //name for panel file, same name for every type
+    std::string panel;
+
     TorusPanelWidget(TorusModule* module) {
         setModule(module);
+
+        panel = PANEL;
+        //set panel on init
+        #include "Theme/initChoosePanel.h"
+
 		setPanel(APP->window->loadSvg(asset::plugin(pluginInstance, "res/Torus_panel.svg")));
 
 		addChild(createWidget<ScrewSilver>(Vec(15, 0)));
@@ -662,6 +682,24 @@ struct TorusPanelWidget : ModuleWidget {
             addChild(TorBuffer);
         }
 
+    }
+
+    //give struct to menu containing panel options
+    #include "Theme/PanelList.h" 
+
+    void appendContextMenu(Menu* menu) override {
+        TorusModule* module = dynamic_cast<TorusModule*>(this->module);
+        assert(module);
+
+        #include "Theme/CreatePanelMenu.h"
+    }
+
+    void step() override {
+        if (module) {
+            //change panel 
+            #include "Theme/UpdatePanel.h"
+        }
+        Widget::step();
     }
 
 };

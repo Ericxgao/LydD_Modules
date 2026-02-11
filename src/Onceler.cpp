@@ -13,7 +13,10 @@ struct Oneder {
     bool Redo;
     int toFell;
     int toWait;
+    bool isHit;
+    bool isSet;
     rack::dsp::BooleanTrigger _Hit;
+    rack::dsp::BooleanTrigger _Tap;
     rack::dsp::PulseGenerator _trig;
     Oneder() {
         this->Cuts = -1;
@@ -37,12 +40,23 @@ struct Oneder {
         this->toFell = treeStrength;
         this->toWait = rotTime;
     }
-    void Chop(float axe, bool* hit) {
-        bool isHit = this->_Hit.process(axe >= 1.f);
-        this->Cuts += isHit;
-        *hit = isHit;
-        //this->toFell = treeStrength;
-        //this->toWait = rotTime;
+    void Chop(float axe, bool* hit, bool reset) {
+        this->isHit = this->_Hit.process(axe >= 1.f);
+        
+        if (reset) {
+            isSet = true;
+            if (this->isHit && isSet) {
+                this->Cuts = -1;
+                isSet = false;
+            }
+            else {
+                this->Cuts = -1;
+            }
+        }
+        else {
+            this->Cuts += this->isHit;
+        }
+        *hit = this->isHit;
         isBarren();
     }
     void cutDown(bool* isFell, int type, float sampleTime) {
@@ -55,8 +69,10 @@ struct Oneder {
             break;
         }
         case 1: { //Auto Reset
+            this->Cuts %= this->toFell + this->toWait;
             Felled = this->Cuts >= this->toFell;
-            if (this->Cuts >= this->toFell + this->toWait) this->reDo();
+            Felled &= (this->Cuts <= this->toFell + this->toWait);
+            //if (this->Cuts >= this->toFell + this->toWait) this->reDo();
             break;
         }
         case 2: { //Latch
@@ -66,21 +82,24 @@ struct Oneder {
 
         case 3: { // Trig 
             bool equal = this->Cuts == this->toFell;
-            if (equal && tFell) {
+            bool tap = _Tap.process(equal);
+            if (tap) {
                 this->_trig.trigger(0.08);
                 tFell = false;
             }
-            tFell = this->Cuts != this->toFell;
+            tFell = this->Cuts < this->toFell;
             Felled = this->_trig.isHigh();
             break;
         }
         case 4: { // AutoTrig 
-            bool equal = (this->Cuts % this->toFell == 0) && this->Cuts != 0;
-            if (equal && tFell) {
+            this->Cuts %= this->toFell + this->toWait;
+            bool equal = (this->Cuts == this->toFell);
+            bool tap = _Tap.process(equal);
+            if (tap) {
                 this->_trig.trigger(0.08);
                 tFell = false;
             }
-            tFell = this->Cuts % this->toFell != 0;
+            tFell = this->Cuts < this->toFell;
             Felled = this->_trig.isHigh();
             break;
         }
@@ -89,8 +108,9 @@ struct Oneder {
             break;
         }
         case 6: { //Auto Not Not
+            this->Cuts %= this->toFell + this->toWait;
             Felled = (this->Cuts < this->toFell) || (this->Cuts > this->toFell + this->toWait);
-            if (this->Cuts >= this->toFell + this->toWait) this->reDo();
+
             break;
         }
         }
@@ -122,6 +142,8 @@ struct OncelerModule : Module
 
         ENUMS(CHOP_OUTPUTS, 4),
         ENUMS(TALK_OUTPUTS, 4),
+        DEBUG_OUT1,
+        DEBUG_OUT2,
         NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -292,25 +314,24 @@ struct OncelerModule : Module
                 float waitIn = Functions.lerp(0.f, 15.f, 0.f, 10.f, abs(inputs[WAIT_INPUTS + i].getVoltage(0)));
                 Waiting[i] = rack::math::clamp(waitPar[i] + waitIn, 1.f, 16.f);
             }
-            if (redont[i]) {
-                Trees[i].setStrength(Cutting[i], Waiting[i]);
-                if (Axes[i] > 1.f) {
-                    Trees[i].reDo();
-                }
-                else {
-                    Trees[i].reDont();
-                }
-            }
+           
+            Trees[i].Chop(Axes[i], &update[i], redont[i]);
             
-            Trees[i].Chop(Axes[i], &update[i]);
+            if (update[i] || chops[i] == 0) {
+                Trees[i].setStrength(Cutting[i], Waiting[i]);
+
+            }
+
+
+
+
             Trees[i].cutDown(&stumpOut[i], holdType[i], args.sampleTime);
             chops[i] = Trees[i].Cuts;
             maxChops[i] = Cutting[i];
             waitTicks[i] = Waiting[i];
-            if ((update[i] && !stumpOut[i]) || chops[i] == 0) {
-                Trees[i].setStrength(Cutting[i], Waiting[i]);
-                
-            }
+            
+            
+
             float speakIn = Axes[i];
             if (isinSpeaks[i]) {
                 speakIn = inputs[SPEAK_INPUTS + i].getVoltage(0);                
@@ -319,7 +340,8 @@ struct OncelerModule : Module
             outputs[TALK_OUTPUTS + i].setVoltage(speakIn * talkOut, 0);
             outputs[CHOP_OUTPUTS + i].setVoltage(stumpOut[i] * 10.f, 0);
         }
-      
+        outputs[DEBUG_OUT1].setVoltage(Trees[0].isHit, 0);
+        outputs[DEBUG_OUT2].setVoltage(Trees[0].Cuts, 0);
     }
 
     void doLights(const ProcessArgs& args) {
@@ -495,6 +517,8 @@ struct OncelerPanelWidget : ModuleWidget {
             addOutput(createOutput<PurplePort>(Vec(treeX, row2Y + (i * distY)), module, OncelerModule::TALK_OUTPUTS + i));
         }
 
+        addOutput(createOutput<PurplePort>(Vec(60, 360), module, OncelerModule::DEBUG_OUT1));
+        addOutput(createOutput<PurplePort>(Vec(90, 360), module, OncelerModule::DEBUG_OUT2));
 
       
 

@@ -2,7 +2,8 @@
 #include "plugin.hpp"
 #include <vector>
 
-
+#define MODULE_NAME SimoneModule
+#define PANEL "Simone_panel.svg"
 
 class Follow {
 private:
@@ -113,6 +114,9 @@ struct SimoneModule : Module
         ENUMS(RANGE_LIGHTS, 3),
         NUM_LIGHTS
     };
+
+    //panel variable holder
+    #include "Theme/PanelVars.h"
 
     SimoneModule() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -501,19 +505,19 @@ struct SimoneModule : Module
 		json_t* rootJ = json_object();
 
 		json_t* speedRangeJ = json_integer(rangetype);
+        json_t* panelJ = json_integer(currPanel);
 
-		json_object_set_new(rootJ, "Speed-Range", speedRangeJ);
+        json_object_set_new(rootJ, "Speed-Range", speedRangeJ);
+        json_object_set_new(rootJ, "Panel", panelJ);
 
 		return rootJ;
     }
 
 	void dataFromJson(json_t* rootJ) override {
-		json_t* speedRangeJ = json_object_get(rootJ, "Speed-Range");
-		if (speedRangeJ) {
-
-					rangetype = json_integer_value(speedRangeJ);
-			
-		}
+        json_t* speedRangeJ = json_object_get(rootJ, "Speed-Range");
+        json_t* panelJ = json_object_get(rootJ, "Panel");
+        if (speedRangeJ) rangetype = json_integer_value(speedRangeJ);
+        if (panelJ) currPanel = json_integer_value(panelJ);
 
 	}
 
@@ -691,10 +695,16 @@ struct SimoneWidget : Widget {
 };
 
 struct SimonePanelWidget : ModuleWidget {
+
+    //name for panel file, same name for every type
+    std::string panel;
+
     SimonePanelWidget(SimoneModule* module) {
         setModule(module);
-        setPanel(createPanel(asset::plugin(pluginInstance, "res/Simone_panel.svg"), asset::plugin(pluginInstance, "res/Simone_panel-dark.svg")));
 
+        panel = PANEL;
+        //set panel on init
+        #include "Theme/initChoosePanel.h"
 
 		addChild(createWidget<ScrewSilver>(Vec(15, 0)));
 		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 30, 0)));
@@ -766,6 +776,24 @@ struct SimonePanelWidget : ModuleWidget {
             addChild(SimBuffer);
         }
 
+    }
+
+    //give struct to menu containing panel options
+    #include "Theme/PanelList.h" 
+
+    void appendContextMenu(Menu* menu) override {
+        SimoneModule* module = dynamic_cast<SimoneModule*>(this->module);
+        assert(module);
+
+        #include "Theme/CreatePanelMenu.h"
+    }
+
+    void step() override {
+        if (module) {
+            //change panel 
+        #include "Theme/UpdatePanel.h"
+        }
+        Widget::step();
     }
 
 };

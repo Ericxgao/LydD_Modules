@@ -32,7 +32,7 @@ struct BaseFunctions {
 
 
     float VoltToFreq(float voltage, float refVolt, float refFreq);
-
+    rack::simd::float_4 VoltToFreq(rack::simd::float_4 voltage, rack::simd::float_4 refVolt, rack::simd::float_4 refFreq);
     float incrementSize(float pitch, float sampleRate);
 
     void incrementPhase(float pitch, float sampleRate, float* phase);

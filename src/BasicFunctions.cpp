@@ -80,6 +80,15 @@ float _2PI = 2.0 * 3.1415926535897932;
         return toFreq;
     }
 
+    rack::simd::float_4 BaseFunctions::VoltToFreq(rack::simd::float_4 voltage, rack::simd::float_4 refVolt, rack::simd::float_4 refFreq) {
+
+        rack::simd::float_4 toNote = (voltage.v - refVolt.v);
+
+        rack::simd::float_4 toFreq = refFreq.v * rack::simd::pow(2.f, toNote.v);
+
+        return toFreq;
+    }
+
     float BaseFunctions::incrementSize(float pitch, float sampleRate) {
         return _2PI * pitch / sampleRate;
 
@@ -95,10 +104,15 @@ float _2PI = 2.0 * 3.1415926535897932;
     void BaseFunctions::incrementPhase(rack::simd::float_4 pitch, float sampleRate, rack::simd::float_4* phase, float limit) {
         rack::simd::float_4 incremPhase;
         rack::simd::float_4 circle(limit);
-
+        rack::simd::float_4 sgnmask = pitch.v < 0.f;
         incremPhase = _2PI * pitch / sampleRate;
+        rack::simd::float_4 compMaskneg = *phase >= -circle;
+
         rack::simd::float_4 compMask = *phase <= circle;
-        *phase += rack::simd::ifelse((compMask), incremPhase, -(circle));
+
+        *phase += rack::simd::ifelse(sgnmask,
+            rack::simd::ifelse((compMaskneg), incremPhase, (circle)),
+            rack::simd::ifelse((compMask), incremPhase, -(circle)));
     }
 
 

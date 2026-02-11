@@ -240,7 +240,7 @@ struct DobbsModule : Module
 
       
     
-        if (loopCounter % 8 == 0) {
+        if (loopCounter % 4 == 0) {
 
             setParams(args);
           

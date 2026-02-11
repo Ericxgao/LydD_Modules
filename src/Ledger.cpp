@@ -65,6 +65,19 @@ struct logicBlock {
         }
         this->Flip = (A < 1);
     }
+
+    void reset() {
+        this->And = false;
+        this->Xor = false;
+        this->Nand = false;
+        this->Nor = false;
+        this->Not1 = false;
+        this->Not2 = false;
+        this->Flip = false;
+        this->Flop = false;
+        this->Ay = false;
+        this->Bee = false;
+    }
 };
 
 struct LedgerModule : Module
@@ -214,6 +227,15 @@ struct LedgerModule : Module
             outputs[NOTS_OUTPUT + (i + 1)].setVoltage(blocks[i].Not1 * 10.f, 0);
             outputs[FLIPFLOPS_OUTPUT + (i - 1)].setVoltage(blocks[i].Flop * 10.f, 0);
         }
+    }
+
+    void onReset(const ResetEvent& e) override {
+
+        loopCounter = 0;
+        for (int i = 1; i < 5; ++i) {
+            blocks[i].reset();
+        }
+        Module::onReset(e);
     }
 
     json_t* dataToJson() override {

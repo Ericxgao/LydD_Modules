@@ -2,7 +2,8 @@
 #include "plugin.hpp"
 #include <vector>
 
-
+#define MODULE_NAME DadrasModule
+#define PANEL "Dadras_panel.svg"
 
  
 
@@ -124,6 +125,9 @@ struct DadrasModule : Module
         ENUMS(WTYPE_LIGHT, 2),
         NUM_LIGHTS
     };
+
+    //panel variable holder
+    #include "Theme/PanelVars.h"
 
     DadrasModule() {
         config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -335,13 +339,13 @@ struct DadrasModule : Module
         }
 
         for (int p = 0; p < 4; ++p) {
-            if (CoordC[p] > bounds + 100) {
+            if (CoordC[p] > bounds) {
                 CoordC = Start;
             }
-            if (CoordL[p] > bounds + 100) {
+            if (CoordL[p] > bounds) {
                 CoordL = Start;
             }
-            if (CoordR[p] > bounds + 100) {
+            if (CoordR[p] > bounds) {
                 CoordR = Start;
             }
         }
@@ -408,6 +412,21 @@ struct DadrasModule : Module
             outputs[R_W_OUTPUT].setVoltage(outputR[3], 0);
 
     }
+
+    json_t* dataToJson() override {
+        json_t* rootJ = json_object();
+        json_t* panelJ = json_integer(currPanel);
+        json_object_set_new(rootJ, "Panel", panelJ);
+
+        return rootJ;
+    }
+
+    void dataFromJson(json_t* rootJ) override {
+        json_t* panelJ = json_object_get(rootJ, "Panel");
+        if (panelJ) currPanel = json_integer_value(panelJ);
+
+    }
+
 };
 
 
@@ -711,9 +730,16 @@ struct DadWidget : Widget{
 };
 
 struct DadrasWidget : ModuleWidget {
+
+    //name for panel file, same name for every type
+    std::string panel;
+
     DadrasWidget(DadrasModule* module) {
         setModule(module);
-		setPanel(APP->window->loadSvg(asset::plugin(pluginInstance, "res/Dadras_panel.svg")));
+
+        panel = PANEL;
+        //set panel on init
+        #include "Theme/initChoosePanel.h"
 
 		addChild(createWidget<ScrewSilver>(Vec(15, 0)));
 		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 30, 0)));
@@ -773,6 +799,24 @@ struct DadrasWidget : ModuleWidget {
             addChild(DadBuffer);
         }
 
+    }
+
+    //give struct to menu containing panel options
+    #include "Theme/PanelList.h" 
+
+    void appendContextMenu(Menu* menu) override {
+        DadrasModule* module = dynamic_cast<DadrasModule*>(this->module);
+        assert(module);
+
+        #include "Theme/CreatePanelMenu.h"
+    }
+
+    void step() override {
+        if (module) {
+            //change panel 
+            #include "Theme/UpdatePanel.h"
+        }
+        Widget::step();
     }
 
 };

@@ -475,10 +475,8 @@ struct ClockModule : Module
         resetconnect = inputs[RESET_INPUT].isConnected();
         runconnect = inputs[RUN_INPUT].isConnected();
         isPWConnect = inputs[PULSEWIDTH_INPUT].isConnected();
-        Buttons.momentButton(params[RESET_BUTTON_PARAM].value, &resetSet, &resetReset);
-        if (resetconnect) {
-            Buttons.momentButton(inputs[RESET_INPUT].getVoltage(0), &resetSet, &resetReset);
-        }
+        
+        
 
         Buttons.latchButton(params[RUN_BUTTON_PARAM].value, &runSet, &runReset);
         if (runconnect) {
@@ -497,7 +495,12 @@ struct ClockModule : Module
     }
 
     void generateOutput(const ProcessArgs& args) {
-       
+        if (resetconnect) {
+            Buttons.momentButton(inputs[RESET_INPUT].getVoltage(0), &resetSet, &resetReset);
+        }
+        else {
+            Buttons.momentButton(params[RESET_BUTTON_PARAM].value, &resetSet, &resetReset);
+        }
         if (isPWConnect) {
             clocks->setPulseW(rack::math::clamp(params[PULSEWIDTH_PARAM].value + ((inputs[PULSEWIDTH_INPUT].getVoltage(0) / 5.f) ), 0.01, 0.99));
         }
