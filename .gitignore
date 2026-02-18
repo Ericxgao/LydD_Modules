@@ -3,3 +3,5 @@ build/
 dep/
 dist/
 plugin.dll
+build-mm/
+metamodule-plugins/

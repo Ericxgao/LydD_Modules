@@ -102,11 +102,12 @@ public:
     }
      
     bool isEOC(float sampletime) {
-        _EOCPulse.process(sampletime);
+        bool eocHigh = _EOCPulse.process(sampletime);
         if (this->EOC) {
             _EOCPulse.trigger(0.08f);
+            eocHigh = true;
         }
-        return _EOCPulse.isHigh();
+        return eocHigh;
     }
 };
 
@@ -354,29 +355,12 @@ struct EnvLEDMain : SvgWidget {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, path)));
     }
     void drawLayer(const DrawArgs& args, int layer) override {
-
-        nvgGlobalCompositeBlendFunc(args.vg, NVG_ONE_MINUS_DST_COLOR, NVG_ONE);
-        if (!svg) return;
         if (module && layer == 1) {
-            for (auto s = svg->handle->shapes; s; s = s->next) {
-                nvgStrokeWidth(args.vg, (s->strokeWidth));
-                float enVal = (module->EnvelopeMain[side] );
-                nvgFillColor(args.vg, nvgHSL(0.3f + (enVal / 5.f), 0.8, enVal * 0.6f));
-                for (auto p = s->paths; p; p = p->next) {
-                    nvgBeginPath(args.vg);
-                    nvgMoveTo(args.vg, p->pts[0], p->pts[1]);
-                    for (auto i = 0; i < p->npts - 1; i += 3) {
-                        float* path = &p->pts[i * 2];
-                        nvgBezierTo(args.vg, path[2], path[3], path[4], path[5], path[6], path[7]);
-                    }
-                    if (p->closed)
-                        nvgLineTo(args.vg, p->pts[0], p->pts[1]);
-                    if (s->fill.type)
-                        nvgFill(args.vg);
-                    if (s->stroke.type)
-                        nvgStroke(args.vg);
-                }
-            }
+            float enVal = rack::math::clamp(module->EnvelopeMain[side], 0.f, 1.f);
+            nvgBeginPath(args.vg);
+            nvgRoundedRect(args.vg, 0.f, 0.f, box.size.x, box.size.y, 1.0f);
+            nvgFillColor(args.vg, nvgHSLA(0.35f + (enVal / 6.f), 0.8f, 0.45f, (unsigned char)(enVal * 160.f)));
+            nvgFill(args.vg);
         }
         Widget::drawLayer(args, layer);
     }
@@ -392,29 +376,12 @@ struct EnvLEDComp : SvgWidget {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, path)));
     }
     void drawLayer(const DrawArgs& args, int layer) override {
-
-        nvgGlobalCompositeBlendFunc(args.vg, NVG_ONE_MINUS_DST_COLOR, NVG_ONE);
-        if (!svg) return;
         if (module && layer == 1) {
-            for (auto s = svg->handle->shapes; s; s = s->next) {
-                nvgStrokeWidth(args.vg, (s->strokeWidth));
-                float enVal = (module->EnvelopeCompanion[side]);
-                nvgFillColor(args.vg, nvgHSL(0.3f + (enVal * 0.2f), 0.5f, enVal * 0.6f) /*nvgRGBAf(0.f, 1.f, 0.2f, enVal)*/);
-                for (auto p = s->paths; p; p = p->next) {
-                    nvgBeginPath(args.vg);
-                    nvgMoveTo(args.vg, p->pts[0], p->pts[1]);
-                    for (auto i = 0; i < p->npts - 1; i += 3) {
-                        float* path = &p->pts[i * 2];
-                        nvgBezierTo(args.vg, path[2], path[3], path[4], path[5], path[6], path[7]);
-                    }
-                    if (p->closed)
-                        nvgLineTo(args.vg, p->pts[0], p->pts[1]);
-                    if (s->fill.type)
-                        nvgFill(args.vg);
-                    if (s->stroke.type)
-                        nvgStroke(args.vg);
-                }
-            }
+            float enVal = rack::math::clamp(module->EnvelopeCompanion[side], 0.f, 1.f);
+            nvgBeginPath(args.vg);
+            nvgRoundedRect(args.vg, 0.f, 0.f, box.size.x, box.size.y, 1.0f);
+            nvgFillColor(args.vg, nvgHSLA(0.32f + (enVal * 0.2f), 0.5f, 0.45f, (unsigned char)(enVal * 160.f)));
+            nvgFill(args.vg);
         }
         Widget::drawLayer(args, layer);
     }

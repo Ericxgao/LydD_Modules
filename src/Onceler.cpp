@@ -60,7 +60,7 @@ struct Oneder {
         isBarren();
     }
     void cutDown(bool* isFell, int type, float sampleTime) {
-        _trig.process(sampleTime);
+        bool trigHigh = _trig.process(sampleTime);
         bool Felled = false;
         bool tFell = true;
         switch (type) {       
@@ -86,9 +86,10 @@ struct Oneder {
             if (tap) {
                 this->_trig.trigger(0.08);
                 tFell = false;
+                trigHigh = true;
             }
             tFell = this->Cuts < this->toFell;
-            Felled = this->_trig.isHigh();
+            Felled = trigHigh;
             break;
         }
         case 4: { // AutoTrig 
@@ -98,9 +99,10 @@ struct Oneder {
             if (tap) {
                 this->_trig.trigger(0.08);
                 tFell = false;
+                trigHigh = true;
             }
             tFell = this->Cuts < this->toFell;
-            Felled = this->_trig.isHigh();
+            Felled = trigHigh;
             break;
         }
         case 5: { // Not Not

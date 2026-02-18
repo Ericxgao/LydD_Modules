@@ -69,7 +69,9 @@ private:
     rack::dsp::BooleanTrigger clockphaseResets[NUM_CLOCKS]; // 0 is base clock
     rack::dsp::BooleanTrigger measBResets[NUM_MB_CLOCKS]; //measurebound triggers
     rack::dsp::PulseGenerator outputPulses[NUM_CLOCKS]; // 0 is base clock
+    bool outputPulseHigh[NUM_CLOCKS] = {false};
     rack::dsp::PulseGenerator measBPulses[NUM_MB_CLOCKS]; //measurebound pulses
+    bool measBPulseHigh[NUM_MB_CLOCKS] = {false};
     rack::dsp::Timer externalTimer;
 
 public:
@@ -279,25 +281,27 @@ public:
 
     void makePulses(float sampletime) {
         for (int i = 0; i < NUM_CLOCKS; ++i) {
-            outputPulses[i].process(sampletime);
+            outputPulseHigh[i] = outputPulses[i].process(sampletime);
 
             if (phaseSet[i]) {
                 outputPulses[i].trigger((1.f / (clocksFreq[i])) * pulseWidth[i]);
+                outputPulseHigh[i] = true;
             }
         }
         for (int i = 0; i < NUM_MB_CLOCKS; ++i) {
-            measBPulses[i].process(sampletime);
+            measBPulseHigh[i] = measBPulses[i].process(sampletime);
 
             if (measBset[i]) {
                 measBPulses[i].trigger((1.f / (measBfreq[i])) * pulseWidth[i]);
+                measBPulseHigh[i] = true;
             }
         }
     }
     bool getPulseClock(int index) {
-        return outputPulses[index].isHigh();
+        return outputPulseHigh[index];
     }
     bool getPulseMeasB(int index) {
-        return measBPulses[index].isHigh();
+        return measBPulseHigh[index];
     }
     float getMeasurePhase(int index) {
         float phase = clocksPhase[index];
@@ -511,13 +515,14 @@ struct ClockModule : Module
         clocks->externalBPMgen(args.sampleTime, isExtConnect, ExtCVin);
         clocks->setfundFreq(); 
 
-        _runPulse.process(args.sampleTime);
-        _resetPulse.process(args.sampleTime);
+        bool runPulseHigh = _runPulse.process(args.sampleTime);
+        bool resetPulseHigh = _resetPulse.process(args.sampleTime);
         
         bool isRun = _Run.process(runSet);
         bool isStop = _Stop.process(!runSet);
         if (isRun || isStop) {
             _runPulse.trigger(0.08);
+            runPulseHigh = true;
         }
 
         float clocksOut[13] = { 0.f };
@@ -550,9 +555,10 @@ struct ClockModule : Module
         if (isReset) {
             clocks->reset();
             _resetPulse.trigger(0.08);
+            resetPulseHigh = true;
         }
-        float runtrig = (_runPulse.isHigh()) * 10.f;
-        float resetrig = (_resetPulse.isHigh()) * 10.f;
+        float runtrig = (runPulseHigh) * 10.f;
+        float resetrig = (resetPulseHigh) * 10.f;
         outputs[RUN_TRIG_OUTPUT].setVoltage(runtrig, 0);
         outputs[RESET_TRIG_OUTPUT].setVoltage(resetrig, 0);
 

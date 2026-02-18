@@ -267,62 +267,37 @@ NVGcolor getNVGColor(unsigned int c) {
 }
 
 struct LightGlyph : SvgLight {
-    LightGlyph() {
-
-    }
+    LightGlyph() {}
     void drawLight(const DrawArgs& args) override {
-        //nvgGlobalCompositeBlendFunc(args.vg, NVG_ONE_MINUS_DST_COLOR, NVG_ONE);
-        if (!sw->svg) return;
-
-        for (auto s = sw->svg->handle->shapes; s; s = s->next) {
-
-            for (auto p = s->paths; p; p = p->next) {
-                nvgBeginPath(args.vg);
-                nvgFillColor(args.vg, this->color);
-                nvgMoveTo(args.vg, p->pts[0], p->pts[1]);
-                for (auto i = 0; i < p->npts - 1; i += 3) {
-                    float* path = &p->pts[i * 2];
-                    nvgBezierTo(args.vg, path[2], path[3], path[4], path[5], path[6], path[7]);
-                }
-                if (p->closed)
-                    nvgLineTo(args.vg, p->pts[0], p->pts[1]);
-                if (s->fill.type)
-                    nvgFill(args.vg);
-            }
-        }
-        // LightWidget::drawLight(args);
+        SvgLight::drawLight(args);
     }
 };
 
 struct ANDLight : LightGlyph {
     ANDLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/AND-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
    
 };
 struct XORLight : LightGlyph {
     XORLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/XOR-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
 
 };
 struct NANDLight : LightGlyph {
     NANDLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/NAND-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
     
 };
 struct NORLight : LightGlyph {
     NORLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/NOR-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
 
 };
@@ -330,8 +305,7 @@ struct NORLight : LightGlyph {
 struct NOTLight : LightGlyph {
     NOTLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/NOT-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
 
 };
@@ -339,8 +313,7 @@ struct NOTLight : LightGlyph {
 struct FLOPLight : LightGlyph {
     FLOPLight() {
         this->setSvg(Svg::load(asset::plugin(pluginInstance, "res/Logic_Glyphs/FLOP-G.svg")));
-        auto s = this->sw->svg->handle->shapes;
-        this->addBaseColor(getNVGColor(s->fill.color));
+        this->addBaseColor(nvgRGB(0x5f, 0xe9, 0xff));
     }
 
 };

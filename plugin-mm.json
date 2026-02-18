@@ -1,0 +1,19 @@
+{
+  "MetaModuleBrandName": "LydD Modules",
+  "MetaModuleBrandSlug": "LydD-Modules",
+  "MetaModulePluginMaintainer": "Eric Gao",
+  "MetaModulePluginMaintainerEmail": "ericxgao@users.noreply.github.com",
+  "MetaModulePluginMaintainerUrl": "https://github.com/Ericxgao",
+  "MetaModuleDescription": "LydD Modules ported from VCV Rack for MetaModule",
+  "MetaModuleIncludedModules": [
+    { "slug": "Poppy-fields", "name": "Poppy-Fields" },
+    { "slug": "Dadras-Momeni-Chaos", "name": "Mom-and-Dad" },
+    { "slug": "Simone-Chaos", "name": "Simone" },
+    { "slug": "Torus-Osc", "name": "Torus" },
+    { "slug": "Clock-Long", "name": "Concierge" },
+    { "slug": "Dobbs-Env", "name": "Dobbs" },
+    { "slug": "Ledger-Logic", "name": "Ledger" },
+    { "slug": "The-Onceler", "name": "Onceler" },
+    { "slug": "Shear-Comb", "name": "Shear" }
+  ]
+}
